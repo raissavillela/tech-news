@@ -1,7 +1,7 @@
 import requests
 import time
 import parsel
-from .database import create_news
+from tech_news.database import create_news
 
 
 def fetch(url):
@@ -27,7 +27,7 @@ def scrape_updates(html_content):
     return news_urls if news_urls else []
 
 
-def scrape_next_page(html_content):
+def scrape_next_page_link(html_content):
     selector = parsel.Selector(html_content)
 
     next_page = selector.css("a.next.page-numbers::attr(href)").get()
@@ -44,18 +44,15 @@ def scrape_news(html_content):
     title = selector.css('h1.entry-title::text').get().strip()
     timestamp = selector.css('li.meta-date::text').get()
     writer = selector.css('span.author a::text').get()
-
     reading_time = int(
         selector.css('li.meta-reading-time::text').re_first(r'\d+')
         )
-
     summary = "".join(selector.css(
         'div.entry-content > p:first-of-type *::text'
         ).getall()).strip()
-
     category = selector.css('a.category-style span.label::text').get()
 
-    news_data = {
+    return {
         "url": url,
         "title": title,
         "timestamp": timestamp,
@@ -65,32 +62,30 @@ def scrape_news(html_content):
         "category": category,
     }
 
-    return news_data
 
-
-def get_tech_news(amount):
+def get_tech_news(n):
     url = 'https://blog.betrybe.com/'
-    news_list = []
+    news = []
 
-    while len(news_list) < amount:
+    while len(news) < n:
         html_content = fetch(url)
 
         news_urls = scrape_updates(html_content)
 
         for news_url in news_urls:
-            if len(news_list) >= amount:
+            if len(news) >= n:
                 break
             news_html = fetch(news_url)
             news_data = scrape_news(news_html)
-            news_list.append(news_data)
+            news.append(news_data)
 
-        url = scrape_next_page(html_content)
+        url = scrape_next_page_link(html_content)
 
         if not url:
             break
 
         time.sleep(1)
 
-    create_news(news_list)
+    create_news(news)
 
-    return news_list
+    return news
